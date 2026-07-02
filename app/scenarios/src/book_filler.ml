@@ -17,8 +17,8 @@ let description =
    - the symbols the book filler targets *)
 let symbols = [ Symbol.of_string "AAPL" ]
 
-(** Fair-value process the book filler prices against. One entry per symbol.
-    Tune these to change where the fundamental sits and how much it drifts. *)
+(* Fair-value process the book filler prices against. One entry per symbol.
+   Tune these to change where the fundamental sits and how much it drifts. *)
 let oracle_config : Fundamental_oracle.Config.t =
   Symbol.Map.of_alist_exn
     (List.map symbols ~f:(fun symbol ->
@@ -31,24 +31,25 @@ let oracle_config : Fundamental_oracle.Config.t =
           : Fundamental_oracle.Config.symbol_config) )))
 ;;
 
-(** How many independent book fillers to launch. Behavior is evident is one
-    aggressive book_filler but parameters can be turned to show multi-client
-    flood and test per-participant defenses against several attackers. *)
+(* How many independent book fillers to launch. The pathology is evident with
+   one aggressive book filler, but launching several exercises the
+   per-participant defenses from Section 3 against multiple attackers at
+   once. *)
 let num_book_fillers = 4
 
-(** Build a given book filler. Two things are made distinct per copy:
+(* Build the [index]th book filler. Two things are made distinct per copy:
 
-    - [participant]: each copy is a different exchange participant.
-    - [rng_seed]: distinct seeds give each copy an independent, reproducible
-      stream of side / price / size choices, so the crowd fills the book with
-      varied orders
+   - [participant]: each copy is a different exchange participant.
+   - [rng_seed]: distinct seeds give each copy an independent, reproducible
+     stream of side / price / size choices, so the crowd fills the book with
+     varied orders
 
-    Everything else is shared here, but [Book_filler.Config.t] is fully
-    per-instance, so you can also tune [orders_per_tick], [order_size], or
-    the offset knobs per copy by varying them off [index].
+   Everything else is shared here, but [Book_filler.Config.t] is fully
+   per-instance, so you can also tune [orders_per_tick], [order_size], or the
+   offset knobs per copy by varying them off [index].
 
-    Built inside a function (not a top-level value) because
-    [Config.next_client_id] is mutable: each spec gets its own fresh counter. *)
+   Built inside a function (not a top-level value) because
+   [Config.next_client_id] is mutable: each spec gets its own fresh counter. *)
 let book_filler_spec ~index : Bot_spec.t =
   let config : Jsip_bots.Book_filler.Config.t =
     { symbols

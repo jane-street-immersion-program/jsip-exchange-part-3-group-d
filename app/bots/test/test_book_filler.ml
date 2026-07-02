@@ -67,7 +67,7 @@ let%expect_test "one tick submits the expected pile of non-marketable \
     && List.for_all sells ~f:(fun r ->
       Price.to_int_cents r.price >= fair_cents + config.min_offset)
   in
-  (** The random jitter is bounded: distance from fair is [min_offset] plus a
+  (* The random jitter is bounded: distance from fair is [min_offset] plus a
      draw in [[0, max_random_offset]], so every order lands between
      [min_offset] and [min_offset + max_random_offset] cents out. Guards
      against an off-by-one error *)
@@ -82,9 +82,8 @@ let%expect_test "one tick submits the expected pile of non-marketable \
       let size = Size.to_int r.size in
       size >= 1 && size <= config.order_size)
   in
-  (** Every order must carry a fresh id; Comparing the id-set size
-     to the order count is an independent check that all [count] ids are
-     distinct. *)
+  (* Every order must carry a fresh id; comparing the id-set size to the
+     order count is an independent check that all [count] ids are distinct. *)
   let ids = List.map orders ~f:(fun r -> r.client_order_id) in
   let unique_ids = Set.length (Client_order_id.Set.of_list ids) in
   printf "orders submitted: %d\n" count;
@@ -110,7 +109,7 @@ let%expect_test "one tick submits the expected pile of non-marketable \
 ;;
 
 let%expect_test "runs are reproducible: same seed submits identical orders" =
-  (** Every stochastic choice flows through [Context.random], which the
+  (* Every stochastic choice flows through [Context.random], which the
      harness seeds identically on each build. Two independent single-tick
      runs must submit byte-for-byte identical requests. If someone
      reintroduced a [Random.self_init] or a fresh un-seeded state, this flips
@@ -136,10 +135,10 @@ let%expect_test "a fill against the bot is ignored: no submit, no cancel" =
       ~initial_price_cents:fair_cents
       ()
   in
-  (** A fill in which one of the bot's own resting orders (the [resting_*]
+  (* A fill in which one of the bot's own resting orders (the [resting_*]
      side, owned by the harness participant "Alice") trades against a taker.
-     The book filler is not reactive: its orders exist to
-     sit on the book, so a fill is not a signal to do anything. *)
+     The book filler is not reactive: its orders exist to sit on the book, so
+     a fill is not a signal to do anything. *)
   let fill : Exchange_event.t =
     Fill
       { fill_id = 1
