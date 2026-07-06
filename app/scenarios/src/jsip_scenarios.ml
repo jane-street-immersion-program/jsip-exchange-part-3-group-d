@@ -5,6 +5,7 @@ module Active_day = Active_day
 module Earnings_shock = Earnings_shock
 module Flash_crash = Flash_crash
 module Book_filler = Book_filler
+module Order_spam = Order_spam
 
 let all : (module Scenario.S) list =
   [ (module Calm_day)
@@ -12,6 +13,7 @@ let all : (module Scenario.S) list =
   ; (module Earnings_shock)
   ; (module Flash_crash)
   ; (module Book_filler)
+  ; (module Order_spam)
   ]
 ;;
 

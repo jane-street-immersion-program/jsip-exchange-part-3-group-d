@@ -66,36 +66,15 @@ let spammer_spec ~index : Bot_spec.t =
     }
 ;;
 
-(* An innocent, read-only observer that probes the book on a gentle schedule
-   and reports its round-trip latency. It's the "user whose UX we're
-   protecting": as the spammers load the exchange, watch its reported
-   percentiles climb. *)
-let canary_spec : Bot_spec.t =
-  let config : Resource_canary.Config.t =
-    { symbol; report_every = 10; samples = [] }
-  in
-  Bot_spec.T
-    { bot = (module Resource_canary)
-    ; config
-    ; participant = Participant.of_string "Canary"
-    ; symbols = [ symbol ]
-    ; rng_seed = 0
-    ; tick_interval = Time_ns.Span.of_sec 0.5
-    ; is_marketdata_consumer = false
-    }
-;;
-
 let configure () : Scenario_config.t =
-  (* A crowd of [num_spammers], each flooding under its own identity, plus
-     one [Canary] measuring the collateral damage. More spammer instances
-     means more request-path and subscriber-pipe pressure, since each opens
-     its own session. Set [num_spammers] to 1 for a single instance. *)
+  (* A crowd of [num_spammers], each flooding under its own identity. More
+     instances means more request-path and subscriber-pipe pressure, since
+     each opens its own session. Set [num_spammers] to 1 for a single
+     instance. *)
   { name
   ; symbols = [ symbol ]
   ; oracle_config
   ; news = []
-  ; bots =
-      canary_spec
-      :: List.init num_spammers ~f:(fun index -> spammer_spec ~index)
+  ; bots = List.init num_spammers ~f:(fun index -> spammer_spec ~index)
   }
 ;;
