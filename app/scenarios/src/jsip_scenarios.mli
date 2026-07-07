@@ -15,6 +15,7 @@ module Active_day = Active_day
 module Earnings_shock = Earnings_shock
 module Flash_crash = Flash_crash
 module Book_filler = Book_filler
+module Cancel_scenario = Cancel_scenario
 module Slow_consumer = Slow_consumer
 module Order_spam = Order_spam
 
