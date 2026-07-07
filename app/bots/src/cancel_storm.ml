@@ -20,6 +20,7 @@ module Config = struct
 
   (* The exchange scopes ids per participant, so the starting value is
      irrelevant — only that each id is used exactly once. *)
+  (* CR Clara: You can just set this in your create function *)
   let first_client_order_id = 1
 
   (* Raise on nonsensical config: a scenario with e.g. zero cycles is a
@@ -54,6 +55,8 @@ let name = "cancel-storm"
    per participant and rejects repeats as duplicates (cancelling does NOT
    free an id), so reusing one would bounce every submit after the first and
    stall the storm. *)
+
+(* CR Clara: Move all helper functions to be nested inside on_tick *)
 let fresh_client_order_id (config : Config.t) =
   let id = config.next_client_order_id in
   config.next_client_order_id <- id + 1;
@@ -62,6 +65,7 @@ let fresh_client_order_id (config : Config.t) =
 
 (* Round-robin across the configured symbols; with a single symbol this
    always returns that symbol. *)
+(* CR Clara: All random behavior should exist based on Context.random *)
 let pick_symbol (config : Config.t) client_order_id =
   let idx =
     Client_order_id.to_int client_order_id % List.length config.symbols
@@ -80,6 +84,9 @@ let run_cycle (config : Config.t) context =
   in
   (* Price away from the fundamental so the order rests instead of trading —
      it needs to rest so there is something to cancel. *)
+  (* CR Clara: I think you can clean up this chunk to have less repetition,
+     maybe make price a price unit operation instead and directly compute it
+     in the record *)
   let fundamental = Context.fundamental context symbol in
   let offset = Price.of_int_cents config.price_offset_cents in
   let price =
