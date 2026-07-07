@@ -25,23 +25,21 @@ open! Core
 open Jsip_types
 
 module Config : sig
-  (* CR Clara: Add comments describing functionality of each config item *)
-  type t =
-    private (* CR Clara: make completely abstract instead of private *)
-    { symbols : Symbol.t list
-    ; cycles_per_tick : int
-    ; order_size : int
-    ; price_offset_cents : int
-    ; mutable next_client_order_id : int
-    (** Internal: the next client order id to allocate. Not a tuning knob —
-        it is seeded by {!create} and mutated forward one step per cycle so
-        every submitted order carries a never-before-used id. *)
-    }
-  [@@deriving sexp_of]
+  (** Tuning knobs for a cancel storm. Abstract: a config can only be built
+      through {!create}, which also seeds the internal client-order-id
+      counter. *)
+  type t [@@deriving sexp_of]
 
-  (** Build a config from its tuning knobs. The internal client-order-id
-      counter is seeded automatically. Raises if [symbols] is empty or any of
-      [cycles_per_tick] / [order_size] is non-positive. *)
+  (** Build a config from its tuning knobs:
+
+      - [symbols]: the stock(s) to churn on;
+      - [cycles_per_tick]: how many submit/cancel pairs run each tick;
+      - [order_size]: shares on each order;
+      - [price_offset_cents]: how far from the fundamental each order rests
+        (so it never trades).
+
+      Raises if [symbols] is empty or either of [cycles_per_tick] /
+      [order_size] is non-positive. *)
   val create
     :  symbols:Symbol.t list
     -> cycles_per_tick:int

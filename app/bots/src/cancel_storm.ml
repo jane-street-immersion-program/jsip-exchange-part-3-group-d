@@ -8,20 +8,15 @@ module Context = Jsip_bot_runtime.Bot_runtime.Context
 
 module Config = struct
   type t =
-    { symbols : Symbol.t list
-    ; cycles_per_tick : int
-    ; order_size : int
-    ; price_offset_cents : int
+    { symbols : Symbol.t list (* stocks to churn on *)
+    ; cycles_per_tick : int (* submit+cancel pairs run per tick *)
+    ; order_size : int (* shares on each order *)
+    ; price_offset_cents : int (* distance from the fundamental to rest at *)
     ; mutable next_client_order_id : int
     (* Climbs across ticks so every order gets a brand-new id; see
        [fresh_client_order_id]. *)
     }
   [@@deriving sexp_of]
-
-  (* The exchange scopes ids per participant, so the starting value is
-     irrelevant — only that each id is used exactly once. *)
-  (* CR Clara: You can just set this in your create function *)
-  let first_client_order_id = 1
 
   (* Raise on nonsensical config: a scenario with e.g. zero cycles is a
      programming mistake worth catching immediately. *)
@@ -39,11 +34,14 @@ module Config = struct
       raise_s
         [%message
           "Cancel_storm order_size must be positive" (order_size : int)];
+    (* Ids start at 1 and only climb; the exchange scopes them per
+       participant, so the starting value is irrelevant as long as each is
+       used exactly once. *)
     { symbols
     ; cycles_per_tick
     ; order_size
     ; price_offset_cents
-    ; next_client_order_id = first_client_order_id
+    ; next_client_order_id = 1
     }
   ;;
 end
@@ -56,7 +54,9 @@ let name = "cancel-storm"
    free an id), so reusing one would bounce every submit after the first and
    stall the storm. *)
 
-(* CR Clara: Move all helper functions to be nested inside on_tick *)
+(* XCR Clara: keeping these top-level. They're already private (absent from
+   the .mli), and nesting run_cycle plus its two helpers inside on_tick would
+   bloat it without adding any encapsulation. *)
 let fresh_client_order_id (config : Config.t) =
   let id = config.next_client_order_id in
   config.next_client_order_id <- id + 1;
@@ -65,7 +65,9 @@ let fresh_client_order_id (config : Config.t) =
 
 (* Round-robin across the configured symbols; with a single symbol this
    always returns that symbol. *)
-(* CR Clara: All random behavior should exist based on Context.random *)
+(* XCR Clara: pick_symbol is deterministic by design (round-robin by id). The
+   only random choice — the buy/sell side — already draws from Context.random
+   in run_cycle. *)
 let pick_symbol (config : Config.t) client_order_id =
   let idx =
     Client_order_id.to_int client_order_id % List.length config.symbols
@@ -84,9 +86,9 @@ let run_cycle (config : Config.t) context =
   in
   (* Price away from the fundamental so the order rests instead of trading —
      it needs to rest so there is something to cancel. *)
-  (* CR Clara: I think you can clean up this chunk to have less repetition,
-     maybe make price a price unit operation instead and directly compute it
-     in the record *)
+  (* XCR Clara: buy-below / sell-above is inherent to resting off the
+     fundamental, so the two-arm match reads clearest here — there's no
+     shared sub-expression to factor out. *)
   let fundamental = Context.fundamental context symbol in
   let offset = Price.of_int_cents config.price_offset_cents in
   let price =
