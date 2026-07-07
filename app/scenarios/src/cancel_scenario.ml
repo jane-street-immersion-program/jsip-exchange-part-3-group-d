@@ -1,8 +1,13 @@
+(* The "cancel-storm" scenario: boots an exchange and points a few
+   Cancel_storm bots at it. [configure] returns a [Scenario_config.t] recipe;
+   the scenario runner turns it into a live exchange + bots. *)
+
 open! Core
 open Jsip_types
 open Jsip_scenario_runner
 module Cancel_storm_bot = Jsip_bots.Cancel_storm
 
+(* Typed after [-scenario] on the command line to pick this. *)
 let name = "cancel-storm"
 
 let description =
@@ -10,25 +15,17 @@ let description =
    and over, hammering the cancel path."
 ;;
 
-(* Single quiet symbol. The cancel storm prices its orders off the
-   fundamental oracle (not the BBO), so a flat, deterministic fundamental is
-   all it needs. *)
 let symbol = Symbol.of_string "AAPL"
 let fair_value_cents = 15_000
 
-(* The storm is driven entirely by the cancel-storm bots. There is
-   deliberately no market maker or noise trader: the pathology is the
-   submit/accept/cancel churn and the ever-growing per-participant
-   duplicate-id table, and the bot cancels its {e own} resting orders, so it
-   never needs a counterparty to trade against. Running several copies under
-   distinct participant names amplifies the pressure and makes it obvious
-   within a few seconds. *)
+(* Deliberately no market maker or noise trader: the cancel storm cancels its
+   OWN resting orders and never wants to trade, so it needs no counterparty.
+   Several copies just amplify the pressure so the effect shows up fast. *)
 let num_bots = 3
 let cycles_per_tick = 50
 let order_size = 10
 
-(* Rest orders $5 off the fundamental so they never become marketable and
-   always rest-then-cancel cleanly. *)
+(* Sit well away from the fair price so orders rest instead of trading. *)
 let price_offset_cents = 500
 let tick_interval = Time_ns.Span.of_ms 50.
 
@@ -48,9 +45,11 @@ let bot_spec ~index : Bot_spec.t =
     ; config
     ; participant
     ; symbols = [ symbol ]
-    ; rng_seed = index
+    ; rng_seed = index (* seeds Context.random; distinct per bot *)
     ; tick_interval
-    ; is_marketdata_consumer = false
+    ; (* prices off the fundamental, not the live book, so no market-data
+         subscription is needed *)
+      is_marketdata_consumer = false
     }
 ;;
 
@@ -58,6 +57,9 @@ let configure () : Scenario_config.t =
   { name
   ; symbols = [ symbol ]
   ; oracle_config =
+      (* Flat fundamental (zero volatility, no mean reversion) so the
+         scenario is calm and deterministic — the storm is the only thing
+         happening. *)
       Symbol.Map.of_alist_exn
         [ ( symbol
           , { Jsip_fundamental.Fundamental_oracle.Config.initial_price_cents =
