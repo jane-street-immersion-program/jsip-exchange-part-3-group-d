@@ -53,10 +53,6 @@ let name = "cancel-storm"
    per participant and rejects repeats as duplicates (cancelling does NOT
    free an id), so reusing one would bounce every submit after the first and
    stall the storm. *)
-
-(* XCR Clara: keeping these top-level. They're already private (absent from
-   the .mli), and nesting run_cycle plus its two helpers inside on_tick would
-   bloat it without adding any encapsulation. *)
 let fresh_client_order_id (config : Config.t) =
   let id = config.next_client_order_id in
   config.next_client_order_id <- id + 1;
@@ -65,9 +61,6 @@ let fresh_client_order_id (config : Config.t) =
 
 (* Round-robin across the configured symbols; with a single symbol this
    always returns that symbol. *)
-(* XCR Clara: pick_symbol is deterministic by design (round-robin by id). The
-   only random choice — the buy/sell side — already draws from Context.random
-   in run_cycle. *)
 let pick_symbol (config : Config.t) client_order_id =
   let idx =
     Client_order_id.to_int client_order_id % List.length config.symbols
@@ -86,9 +79,6 @@ let run_cycle (config : Config.t) context =
   in
   (* Price away from the fundamental so the order rests instead of trading —
      it needs to rest so there is something to cancel. *)
-  (* XCR Clara: buy-below / sell-above is inherent to resting off the
-     fundamental, so the two-arm match reads clearest here — there's no
-     shared sub-expression to factor out. *)
   let fundamental = Context.fundamental context symbol in
   let offset = Price.of_int_cents config.price_offset_cents in
   let price =
