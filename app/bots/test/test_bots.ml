@@ -69,6 +69,9 @@ let print_submitted (submitted : Order.Request.t list ref) =
       req.time_in_force)
 ;;
 
+(* CR Clara: Move all tests to file test_cancel_storm to prevent conflicts
+   with other tests *)
+
 (* Smoke test: drive the do-nothing reference bot through one event so the
    runtest target exercises the helpers above. Replace or extend with
    bot-specific tests as concrete strategies are added to [Jsip_bots]. *)

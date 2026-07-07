@@ -25,7 +25,9 @@ open! Core
 open Jsip_types
 
 module Config : sig
-  type t = private
+  (* CR Clara: Add comments describing functionality of each config item *)
+  type t =
+    private (* CR Clara: make completely abstract instead of private *)
     { symbols : Symbol.t list
     ; cycles_per_tick : int
     ; order_size : int
