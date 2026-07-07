@@ -14,39 +14,25 @@ open Jsip_bot_runtime
 open! Jsip_bots
 open Jsip_test_harness
 
-(* CR: The fundamental the recording harness pins for [aapl] (see
-   [Test_bots.make_recording_bot]'s [initial_price_cents]; note the harness
-   only registers [aapl] in its oracle, not every symbol). Used as the
-   passive-side reference to check that the spammer's orders are
-   non-marketable, rather than eyeballing the printed price.
-
-   Note this reference is only notional: the spammer prices every order at
-   the fixed [Config.price_cents] and never consults the oracle, so its
-   orders are not actually coupled to this fundamental — the check just
-   confirms the config price sits on the passive side of it.
-
-   Worth refactoring these tests so the non-marketability check reads against
-   something the spammer actually depends on (e.g. asserting each order's
-   price equals [config.price_cents] on the passive side) rather than
-   importing [fair_cents], which the bot never consults. Relatedly, the
-   multi-symbol test only works because the spammer skips the oracle — the
-   harness's [make_recording_bot] registers a fundamental for [aapl] alone.
-   Neither is a correctness bug today, but decoupling the test from that
-   coincidence (or teaching the harness to register every configured symbol)
-   would be cleaner and would keep these tests robust if the spammer ever
-   starts reading the fundamental. *)
-
 (* There is deliberately no reproducibility test here: unlike an RNG-driven
    bot, the spammer makes no [Context.random] calls, so its burst is fixed by
-   [Config.t] alone and there is nothing stochastic to pin. *)
+   [Config.t] and the fundamental alone, with nothing stochastic to pin. *)
+
+(* The fundamental the recording harness pins for every configured symbol
+   (see [Test_bots.make_recording_bot]'s [initial_price_cents]). The spammer
+   reads this each tick and rests [passive_offset_cents] off it, so the tests
+   assert emitted prices directly against [fair_cents] and the configured
+   offset — both values the bot actually consults — rather than a notional
+   reference. *)
 let fair_cents = 15_000
 
 let spammer_config ~symbols ~orders_per_tick : Spammer.Config.t =
   { symbols
   ; orders_per_tick
   ; order_size = 10
-  ; price_cents = 100
+  ; passive_offset_cents = 14_900
   ; side = Buy
+  ; max_concurrent_submits = 4
   ; next_client_order_id = 1
   }
 ;;
@@ -86,17 +72,24 @@ let%expect_test "one tick fires a full burst of fresh, non-marketable orders"
     List.for_all orders ~f:(fun (r : Order.Request.t) ->
       Time_in_force.equal r.time_in_force Day)
   in
-  (* Independently checked, not just eyeballed from the printed price: an
-     order that rests instead of crossing must sit strictly on the passive
-     side of fair (a buy below it, a sell above it). *)
-  let none_would_cross =
+  (* The spammer prices every order a fixed [passive_offset_cents] off the
+     fundamental on the passive side, which is exactly what keeps it resting.
+     Assert that relationship directly — against [fair_cents] (the
+     fundamental the harness pins) and [config.passive_offset_cents], both of
+     which the bot consults — rather than eyeballing the printed price. *)
+  let priced_on_passive_side =
     List.for_all orders ~f:(fun (r : Order.Request.t) ->
-      match r.side with
-      | Buy -> Price.to_int_cents r.price < fair_cents
-      | Sell -> Price.to_int_cents r.price > fair_cents)
+      let expected =
+        match r.side with
+        | Buy -> fair_cents - config.passive_offset_cents
+        | Sell -> fair_cents + config.passive_offset_cents
+      in
+      Price.to_int_cents r.price = expected)
   in
   printf "all time_in_force = Day: %b\n" all_day;
-  printf "none priced to cross fair: %b\n" none_would_cross;
+  printf
+    "all priced on the passive side of fair: %b\n"
+    priced_on_passive_side;
   [%expect
     {|
     burst size: 3
@@ -104,7 +97,7 @@ let%expect_test "one tick fires a full burst of fresh, non-marketable orders"
     id=2 BUY AAPL 10@$1.00 DAY
     id=3 BUY AAPL 10@$1.00 DAY
     all time_in_force = Day: true
-    none priced to cross fair: true
+    all priced on the passive side of fair: true
     |}];
   return ()
 ;;
@@ -114,7 +107,11 @@ let%expect_test "burst covers every configured symbol" =
     spammer_config ~symbols:[ Harness.aapl; Harness.tsla ] ~orders_per_tick:2
   in
   let bot, submitted, _cancelled =
-    Test_bots.make_recording_bot (module Spammer) config ()
+    Test_bots.make_recording_bot
+      (module Spammer)
+      config
+      ~symbols:[ Harness.aapl; Harness.tsla ]
+      ()
   in
   let ctx = Bot_runtime.For_testing.context_of bot in
   let%bind () = Spammer.on_tick config ctx in

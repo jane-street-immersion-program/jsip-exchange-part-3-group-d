@@ -10,15 +10,15 @@ open! Jsip_bots
 let aapl = Symbol.of_string "AAPL"
 let alice = Participant.of_string "Alice"
 
-let oracle_config ~initial_price_cents =
+let oracle_config ~initial_price_cents ~symbols =
   Symbol.Map.of_alist_exn
-    [ ( aapl
-      , { Fundamental_oracle.Config.initial_price_cents
-        ; volatility_cents_per_sec = 0.0
-        ; mean_reversion_strength = 0.0
-        ; tick_interval = Time_ns.Span.of_sec 1.0
-        } )
-    ]
+    (List.map symbols ~f:(fun symbol ->
+       ( symbol
+       , { Fundamental_oracle.Config.initial_price_cents
+         ; volatility_cents_per_sec = 0.0
+         ; mean_reversion_strength = 0.0
+         ; tick_interval = Time_ns.Span.of_sec 1.0
+         } )))
 ;;
 
 (* Build a runtime around a bot module with a mock submit/cancel that records
@@ -28,6 +28,7 @@ let make_recording_bot
   (bot_module : (module Bot_runtime.Bot with type Config.t = cfg))
   (config : cfg)
   ?(initial_price_cents = 15000)
+  ?(symbols = [ aapl ])
   ()
   =
   let submitted = ref [] in
@@ -41,7 +42,9 @@ let make_recording_bot
     return (Ok ())
   in
   let oracle =
-    Fundamental_oracle.create (oracle_config ~initial_price_cents) ~seed:42
+    Fundamental_oracle.create
+      (oracle_config ~initial_price_cents ~symbols)
+      ~seed:42
   in
   let bot =
     Bot_runtime.create

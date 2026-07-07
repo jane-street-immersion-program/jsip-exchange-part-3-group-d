@@ -2,7 +2,6 @@ open! Core
 open Jsip_types
 open Jsip_scenario_runner
 open Jsip_bots
-open Jsip_test_harness (* CR: DO NOT USE TEST HARNESS *)
 
 let name = "order-spam"
 
@@ -11,19 +10,23 @@ let description =
    orders every tick."
 ;;
 
-let symbol = Harness.aapl
-(* CR: DO NOT USE THE TESTING HARNESS TO DEFINE YOUR SYMBOLS *)
-
+let symbol = Symbol.of_string "AAPL"
 let fundamental_price_cents = 15_000
 
-(* A price far below the fundamental so every (buy) order rests instead of
-   crossing: the flood is pure request/pipe pressure, with no fills to muddy
-   what we're measuring. *)
-(* CR: See note from spammer.mli about connecitng this with fundamental
-   instead of relying on bot config *)
-let resting_buy_price_cents = 100
+(* A large passive offset: every (buy) order rests deep below the fundamental
+   (about $1.00 at a 15000 fair) so the flood is pure request/pipe pressure,
+   with no fills to muddy what we're measuring. The spammer reads the live
+   fundamental and applies this offset itself, so the "always rests"
+   guarantee lives in the bot rather than in a magic price picked here. *)
+let passive_offset_cents = 14_900
 let order_size = 10
 let num_spammers = 10
+
+(* Bound on in-flight submissions per spammer per tick: a governed flood.
+   High enough that hundreds of round-trips overlap, low enough that the
+   client's Async scheduler doesn't saturate before the exchange's request
+   path does. *)
+let max_concurrent_submits = 100
 
 (* Per-instance intensity: each spammer fires [orders_per_tick] orders every
    [tick_interval], all at once. Aggregate flood across the crowd is roughly
@@ -54,8 +57,9 @@ let spammer_spec ~index : Bot_spec.t =
     { symbols = [ symbol ]
     ; orders_per_tick
     ; order_size
-    ; price_cents = resting_buy_price_cents
+    ; passive_offset_cents
     ; side = Buy
+    ; max_concurrent_submits
     ; next_client_order_id = 1
     }
   in
