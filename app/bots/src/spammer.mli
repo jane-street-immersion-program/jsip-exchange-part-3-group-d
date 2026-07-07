@@ -35,6 +35,9 @@ module Config : sig
     (** Shares per order. Fixed; since orders never cross, this only affects
         the size of resting liquidity, not fills. *)
     ; price_cents : int
+        (* CR: UI can be prone to mistakes, preferred to do an absolute
+           difference from the fundamenta instead of the exact price so bot
+           isn't accidentally configured to buy very high or sell very low *)
     (** Fixed limit price for every order, in cents. Choose a value far from
         the market — very low for a [Buy], very high for a [Sell] — so each
         order rests instead of crossing. *)

@@ -14,12 +14,29 @@ open Jsip_bot_runtime
 open! Jsip_bots
 open Jsip_test_harness
 
-(* The fundamental the recording harness pins for every symbol by default
-   (see [Test_bots.make_recording_bot]'s [initial_price_cents]). Used to
-   check that the spammer's orders are genuinely non-marketable, rather than
-   eyeballing the printed price.
+(* CR: The fundamental the recording harness pins for [aapl] (see
+   [Test_bots.make_recording_bot]'s [initial_price_cents]; note the harness
+   only registers [aapl] in its oracle, not every symbol). Used as the
+   passive-side reference to check that the spammer's orders are
+   non-marketable, rather than eyeballing the printed price.
 
-   There is deliberately no reproducibility test here: unlike an RNG-driven
+   Note this reference is only notional: the spammer prices every order at
+   the fixed [Config.price_cents] and never consults the oracle, so its
+   orders are not actually coupled to this fundamental — the check just
+   confirms the config price sits on the passive side of it.
+
+   Worth refactoring these tests so the non-marketability check reads against
+   something the spammer actually depends on (e.g. asserting each order's
+   price equals [config.price_cents] on the passive side) rather than
+   importing [fair_cents], which the bot never consults. Relatedly, the
+   multi-symbol test only works because the spammer skips the oracle — the
+   harness's [make_recording_bot] registers a fundamental for [aapl] alone.
+   Neither is a correctness bug today, but decoupling the test from that
+   coincidence (or teaching the harness to register every configured symbol)
+   would be cleaner and would keep these tests robust if the spammer ever
+   starts reading the fundamental. *)
+
+(* There is deliberately no reproducibility test here: unlike an RNG-driven
    bot, the spammer makes no [Context.random] calls, so its burst is fixed by
    [Config.t] alone and there is nothing stochastic to pin. *)
 let fair_cents = 15_000

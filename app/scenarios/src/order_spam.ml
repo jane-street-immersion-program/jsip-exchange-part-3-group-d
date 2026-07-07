@@ -2,7 +2,7 @@ open! Core
 open Jsip_types
 open Jsip_scenario_runner
 open Jsip_bots
-open Jsip_test_harness
+open Jsip_test_harness (* CR: DO NOT USE TEST HARNESS *)
 
 let name = "order-spam"
 
@@ -12,11 +12,15 @@ let description =
 ;;
 
 let symbol = Harness.aapl
+(* CR: DO NOT USE THE TESTING HARNESS TO DEFINE YOUR SYMBOLS *)
+
 let fundamental_price_cents = 15_000
 
 (* A price far below the fundamental so every (buy) order rests instead of
    crossing: the flood is pure request/pipe pressure, with no fills to muddy
    what we're measuring. *)
+(* CR: See note from spammer.mli about connecitng this with fundamental
+   instead of relying on bot config *)
 let resting_buy_price_cents = 100
 let order_size = 10
 let num_spammers = 10
