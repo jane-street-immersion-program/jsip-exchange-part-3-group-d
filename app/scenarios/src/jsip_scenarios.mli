@@ -17,6 +17,7 @@ module Flash_crash = Flash_crash
 module Book_filler = Book_filler
 module Cancel_scenario = Cancel_scenario
 module Slow_consumer = Slow_consumer
+module Order_spam = Order_spam
 
 (** All scenarios known to the runner, in the order they should appear in
     [-help] output. *)

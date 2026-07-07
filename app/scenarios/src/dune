@@ -9,6 +9,7 @@
   jsip_bots
   jsip_market_maker
   jsip_scenario_runner
+  jsip_test_harness
   core
   async)
  (preprocess

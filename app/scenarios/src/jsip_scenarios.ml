@@ -7,6 +7,7 @@ module Flash_crash = Flash_crash
 module Book_filler = Book_filler
 module Cancel_scenario = Cancel_scenario
 module Slow_consumer = Slow_consumer
+module Order_spam = Order_spam
 
 let all : (module Scenario.S) list =
   [ (module Calm_day)
@@ -16,6 +17,7 @@ let all : (module Scenario.S) list =
   ; (module Book_filler)
   ; (module Cancel_scenario)
   ; (module Slow_consumer)
+  ; (module Order_spam)
   ]
 ;;
 
